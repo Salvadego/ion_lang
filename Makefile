@@ -8,8 +8,9 @@ CFLAGS  	     += -Wall -Wextra -Wpedantic \
                     -Wredundant-decls -Wnested-externs -Wmissing-include-dirs
 SANITIZE         = -fsanitize=address,undefined -fno-omit-frame-pointer
 TARGET_DIR       = bin
+TARGET_NAME 	 = ionc
 BUILD_DIR        = build
-TARGET           = $(TARGET_DIR)/main
+TARGET           = $(TARGET_DIR)/$(TARGET_NAME)
 
 SRC              = ./src/main.c
 ALL_SRC          = $(SRC)
