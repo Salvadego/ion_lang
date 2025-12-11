@@ -1,7 +1,8 @@
 #ifndef STD_COLLECTIONS_ARRAYS_H_
+#define STD_COLLECTIONS_ARRAYS_H_
 
-#        include "allocator.h"
-#        include "types.h"
+#include "allocator.h"
+#include "types.h"
 
 typedef struct {
         usize      size;
@@ -10,9 +11,8 @@ typedef struct {
         Allocator* alloc;
 } arr_header_t;
 
-#        define arr_header(v)               \
-                ((arr_header_t*)((u8*)(v) - \
-                                 *(usize*)((u8*)(v) - sizeof(usize))))
+#define arr_header(v) \
+        ((arr_header_t*)((u8*)(v) - *(usize*)((u8*)(v) - sizeof(usize))))
 
 static inline opaque arr_new_impl(Allocator* a,
                                   usize      elem_size,
@@ -72,31 +72,26 @@ static inline opaque arr_grow(opaque arr) {
         return (opaque)aligned;
 }
 
-#        define arr_new(alloc, type) \
-                (type*)arr_new_impl( \
-                    (alloc), SizeOfType(type), AlignOfType(type))
-#        define arr(alloc, type) arr_new(alloc, type)
-#        define arr_len(v)       (arr_header(v)->size)
-#        define arr_cap(v)       (arr_header(v)->capacity)
-#        define arr_free(v)      Allocator_Free(arr_header(v)->alloc, arr_header(v))
+#define arr_new(alloc, type) \
+        (type*)arr_new_impl((alloc), SizeOfType(type), AlignOfType(type))
+#define arr(alloc, type) arr_new(alloc, type)
+#define arr_len(v)       (arr_header(v)->size)
+#define arr_cap(v)       (arr_header(v)->capacity)
+#define arr_free(v)      Allocator_Free(arr_header(v)->alloc, arr_header(v))
 
-#        define arr_append(v, val)                                    \
-                Statement(arr_header_t* _h = arr_header(v);           \
-                          if (_h->size == _h->capacity) {             \
-                                  opaque _new = arr_grow(v);          \
-                                  if (_new == null) break;            \
-                                  v  = _new;                          \
-                                  _h = arr_header(v);                 \
-                          } memcpy((u8*)v + _h->size * _h->elem_size, \
-                                   &(val),                            \
-                                   _h->elem_size);                    \
-                          _h->size++;)
+#define arr_append(v, val)                                                  \
+        Statement(arr_header_t* _h = arr_header(v); if (_h->size ==         \
+                                                        _h->capacity) {     \
+                opaque _new = arr_grow(v);                                  \
+                if (_new == null) break;                                    \
+                v  = _new;                                                  \
+                _h = arr_header(v);                                         \
+        } memcpy((u8*)v + _h->size * _h->elem_size, &(val), _h->elem_size); \
+                  _h->size++;)
 
-#        define arr_print_header(v)                            \
-                Statement(arr_header_t* h = arr_header(v);     \
-                                                               \
-                          printf("Size: %lu\nCapacity: %lu\n", \
-                                 h->size,                      \
-                                 h->capacity);)
+#define arr_print_header(v)                        \
+        Statement(arr_header_t* h = arr_header(v); \
+                                                   \
+                  printf("Size: %lu\nCapacity: %lu\n", h->size, h->capacity);)
 
 #endif  // STD_COLLECTIONS_ARRAYS_H_

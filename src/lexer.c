@@ -1,8 +1,8 @@
 #include "lexer.h"
 
+#include <ctype.h>
 #include <stdio.h>
 
-#include "core/utils.h"
 #include "string/string_view.h"
 
 static inline const char* TokenTypeToString(TokenType t) {
@@ -27,10 +27,13 @@ Location NewLocation(const char* path, const usize col, const usize row) {
         };
 }
 
-Lexer NewLexer(const char* path, const StringView content) {
+Lexer NewLexer(Allocator* alloc, const char* path, const StringView content) {
+        Token* tokens = arr_new(alloc, Token);
         return (Lexer){
-            .location = NewLocation(path, 1, 1),
-            .content  = content,
+            .location  = NewLocation(path, 1, 1),
+            .content   = content,
+            .allocator = alloc,
+            .tokens    = tokens,
         };
 }
 
@@ -56,6 +59,14 @@ StringView lexer_chop_while(Lexer* lexer, StringViewPredicate predicate) {
         return sv;
 }
 
+bool SV_IsSymbolic(const char c) {
+        return c == '_' || (bool)isalnum(c);
+}
+
+bool SV_IsNotQuotePredicate(const char c) {
+        return c != '"';
+}
+
 Token lexer_chop(Lexer* lexer) {
         Token result =
             NewToken(TOKENTYPE_EOF, (TokenValue){0}, lexer->location);
@@ -78,16 +89,39 @@ Token lexer_chop(Lexer* lexer) {
         }
 
         if (SV_IsAlphaPredicate(SV_Front(lexer->content))) {
-                StringView id = lexer_chop_while(lexer, SV_IsAlnumPredicate);
+                StringView id = lexer_chop_while(lexer, SV_IsSymbolic);
                 TokenValue v  = {.symbol = id};
-                return NewToken(TOKENTYPE_SYMBOL, v, loc);
+                return NewToken(TOKENTYPE_IDENTIFIER, v, loc);
         }
 
+        if (SV_IsDigitPredicate(SV_Front(lexer->content))) {
+                StringView id = lexer_chop_while(lexer, SV_IsDigitPredicate);
+                TokenValue v  = {.symbol = id};
+                return NewToken(TOKENTYPE_NUMBER, v, loc);
+        }
+
+        if (SV_HasPrefix(lexer->content, SV("\""))) {
+                (void)lexer_chop_prefix(lexer, SV("\""));  // consume quote
+                StringView id = lexer_chop_while(lexer, SV_IsNotQuotePredicate);
+                (void)lexer_chop_prefix(lexer, SV("\""));  // consume quote
+                TokenValue v = {.symbol = id};
+                return NewToken(TOKENTYPE_STRING, v, loc);
+        }
+
+        printf("%c", SV_Front(lexer->content));
         unreachable;
         return NewToken(
             TOKENTYPE_EOF, (TokenValue){.symbol = lexer->content}, loc);
 }
 
 bool Lex(Lexer* lexer) {
+        Token tok = lexer_chop(lexer);
+        arr_append(lexer->tokens, tok);
+
+        while (tok.type != TOKENTYPE_EOF) {
+                tok = lexer_chop(lexer);
+                arr_append(lexer->tokens, tok);
+        }
+
         return true;
 }

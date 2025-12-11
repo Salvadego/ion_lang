@@ -313,6 +313,10 @@ inline bool SV_IsAlnumPredicate(const char c) {
         return (bool)isalnum((u32)c);
 }
 
+inline bool SV_IsQuotePredicate(const char c) {
+        return c == '"';
+}
+
 inline bool SV_IsDigitPredicate(const char c) {
         return (bool)isdigit((u32)c);
 }
