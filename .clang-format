@@ -1,0 +1,18 @@
+BasedOnStyle: Google
+IndentWidth: 8
+TabWidth: 8
+UseTab: Never
+ColumnLimit: 80
+
+AllowShortFunctionsOnASingleLine: None
+# AlignAfterOpenBracket: AlwaysBreak
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveMacros: true
+BinPackArguments: false
+BinPackParameters: false
+
+IndentPPDirectives: AfterHash
+
+StatementMacros:
+  [ 'DefineResult', 'DefineOption', 'DefineVector', 'DefineSlice', 'DefineMap' ]
