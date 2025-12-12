@@ -83,7 +83,7 @@ bool SV_IsDoubleQuote(const char c) {
         return c == '"';
 }
 
-bool SV_IsDoubleNotQuote(const char c) {
+bool SV_IsNotDoubleQuote(const char c) {
         return c != '"';
 }
 
@@ -117,7 +117,7 @@ bool match_STRING(Lexer* lx, Token* out) {
         Location loc = lx->location;
 
         chop_prefix(lx, SV("\""));
-        StringView body = chop_while(lx, SV_IsDoubleQuote);
+        StringView body = chop_while(lx, SV_IsNotDoubleQuote);
         chop_prefix(lx, SV("\""));
 
         out->type       = TOKENTYPE_STRING;

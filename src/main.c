@@ -126,7 +126,7 @@ void print_token(Token token) {
                 case TOKENTYPE_EQUAL:
                 case TOKENTYPE_LESSTHAN:
                 case TOKENTYPE_GREATERTHAN:
-                case TOKENTYPE_PERIOD:
+                case TOKENTYPE_DOT:
                 case TOKENTYPE_AND:
                 case TOKENTYPE_OR:
                 case TOKENTYPE_NOT:
@@ -137,6 +137,10 @@ void print_token(Token token) {
                 case TOKENTYPE_EOF:
                 case TOKENTYPE_INVALID:
                 case TOKENTYPE_IMPORT:
+                case TOKENTYPE_LBRACKET:
+                case TOKENTYPE_RBRACKET:
+                case TOKENTYPE_STRUCT:
+                case TOKENTYPE_ENUM:
                         break;
         }
 }
