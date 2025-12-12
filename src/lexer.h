@@ -2,15 +2,8 @@
 
 #define FRONT_LEXER_H
 
-#include <stdatomic.h>
-#include <stdio.h>
-
-#include "allocator.h"
 #include "collections/arrays.h"
-#include "core/utils.h"
-#include "error/error.h"
 #include "string/string_view.h"
-#include "types.h"
 
 typedef enum {
 #define TOKEN_DEF(name, text, ...) name,

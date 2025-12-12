@@ -1,10 +1,5 @@
 #include "lexer.h"
 
-#include <ctype.h>
-#include <stdio.h>
-
-#include "string/string_view.h"
-
 static inline const char* TokenTypeToString(TokenType t) {
         return (t >= 0 && t < TokensCount) ? TokenTypeName[t] : "Unknown";
 }

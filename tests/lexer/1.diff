@@ -1,0 +1,11 @@
+--- tests/lexer/1.ans	2025-12-12 11:16:55.826580757 -0300
++++ tests/lexer/1.out	2025-12-12 11:16:57.668551510 -0300
+@@ -20,6 +20,8 @@
+ IDENTIFIER:f32
+ EQUAL
+ NUMBER
++PERIOD
++NUMBER
+ SEMICOLON
+ IDENTIFIER:my_string_variable
+ COLON
