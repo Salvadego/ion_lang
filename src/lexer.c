@@ -58,6 +58,10 @@ bool SV_IsSymbolic(const char c) {
         return c == '_' || (bool)isalnum(c);
 }
 
+bool SV_IsQuotePredicate(const char c) {
+        return c == '"';
+}
+
 bool SV_IsNotQuotePredicate(const char c) {
         return c != '"';
 }
@@ -83,19 +87,20 @@ Token lexer_chop(Lexer* lexer) {
                 }
         }
 
-        if (SV_IsAlphaPredicate(SV_Front(lexer->content))) {
+        char c0 = SV_Front(lexer->content);
+        if (SV_IsAlphaPredicate(c0)) {
                 StringView id = lexer_chop_while(lexer, SV_IsSymbolic);
                 TokenValue v  = {.symbol = id};
                 return NewToken(TOKENTYPE_IDENTIFIER, v, loc);
         }
 
-        if (SV_IsDigitPredicate(SV_Front(lexer->content))) {
+        if (SV_IsDigitPredicate(c0)) {
                 StringView id = lexer_chop_while(lexer, SV_IsDigitPredicate);
                 TokenValue v  = {.symbol = id};
                 return NewToken(TOKENTYPE_NUMBER, v, loc);
         }
 
-        if (SV_HasPrefix(lexer->content, SV("\""))) {
+        if (SV_IsQuotePredicate(c0)) {
                 (void)lexer_chop_prefix(lexer, SV("\""));  // consume quote
                 StringView id = lexer_chop_while(lexer, SV_IsNotQuotePredicate);
                 (void)lexer_chop_prefix(lexer, SV("\""));  // consume quote
