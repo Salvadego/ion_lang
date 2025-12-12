@@ -63,13 +63,12 @@
 
 #define OffsetOfMember(T, m) offsetof(T, m)
 #define SizeOfType(T)        sizeof(T)
-#define AlignOfType(T)      \
-        offsetof(           \
-            struct {        \
-                    char c; \
-                    T    t; \
-            },              \
-            t)
+#define AlignOfType(T)   \
+        (sizeof(struct { \
+                 char c; \
+                 T    x; \
+         }) -            \
+         sizeof(T))
 
 #define Kilobytes(count) (u64)((count) * (u64)1024)
 #define Megabytes(count) (u64)((count) * Kilobytes(1024))
