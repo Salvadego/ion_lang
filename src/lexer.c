@@ -1,24 +1,24 @@
 #include "lexer.h"
 
 enum CharClass {
-        C_OTHER = 0,
-        C_DIGIT,
-        C_HEX,
-        C_DOT,
-        C_E,
-        C_SIGN,
-        C_UNDERSCORE,
-        C_LAST
+        CLASS_OTHER = 0,
+        CLASS_DIGIT,
+        CLASS_HEX,
+        CLASS_DOT,
+        CLASS_E,
+        CLASS_SIGN,
+        CLASS_UNDERSCORE,
+        CLASS_LAST
 };
 
 static inline enum CharClass classify(char c) {
-        if (c == '_') return C_UNDERSCORE;
-        if (c == '.') return C_DOT;
-        if (c == 'e' || c == 'E') return C_E;
-        if (c == '+' || c == '-') return C_SIGN;
-        if (c >= '0' && c <= '9') return C_DIGIT;
-        if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) return C_HEX;
-        return C_OTHER;
+        if (c == '_') return CLASS_UNDERSCORE;
+        if (c == '.') return CLASS_DOT;
+        if (c == 'e' || c == 'E') return CLASS_E;
+        if (c == '+' || c == '-') return CLASS_SIGN;
+        if (c >= '0' && c <= '9') return CLASS_DIGIT;
+        if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) return CLASS_HEX;
+        return CLASS_OTHER;
 }
 
 enum {
@@ -35,8 +35,8 @@ enum {
 };
 
 // transitions[state][charclass]
-static const unsigned char DFA[S_LAST][C_LAST] = {
-    /*             O            D      H      .      E          S         _*/
+static const unsigned char NUMBER_DFA[S_LAST][CLASS_LAST] = {
+    /*                O         D      H      .      E          S         _*/
     [SERR]      = {SERR,     SERR,  SERR,  SERR,  SERR,      SERR,     SERR},
     [S_START]   = {SERR,    S_INT,  SERR,  SERR,  SERR,      SERR,     SERR},
     [S_INT]     = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT},
@@ -47,6 +47,9 @@ static const unsigned char DFA[S_LAST][C_LAST] = {
     [S_EXPDIG]  = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR, S_EXPDIG},
     [S_HEX]     = {SERR,    S_HEX, S_HEX,  SERR,  SERR,      SERR,    S_HEX},
 };
+
+// 12e+
+// 12.34e-56
 
 static inline bool try_hex(const char* p, const char* end, const char** out) {
         if (!(p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))) return false;
@@ -186,7 +189,7 @@ bool match_NUMBER(Lexer* lx, Token* out) {
 
         while (p < end) {
                 enum CharClass cc   = classify(*p);
-                unsigned       next = DFA[state][cc];
+                unsigned       next = NUMBER_DFA[state][cc];
 
                 if (next == SERR) break;
 
