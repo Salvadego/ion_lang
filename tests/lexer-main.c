@@ -46,8 +46,8 @@ int main(int argc, char** argv) {
 
                 for (usize i = 0; i < arr_len(lexer.tokens); i++) {
                         Token t = lexer.tokens[i];
-                        if (t.type == TOKENTYPE_EOF) break;
                         print_token(t);
+                        if (t.type == TOKENTYPE_EOF) break;
                 }
         }
 

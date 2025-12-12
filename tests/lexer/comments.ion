@@ -1,0 +1,6 @@
+// linha inteira
+a // inline
+b /* bloco */
+/* multi
+   linha */
+c /**/ d
