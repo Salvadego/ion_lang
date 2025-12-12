@@ -15,6 +15,7 @@ static void print_token(const Token t) {
 
         switch (t.type) {
                 case TOKENTYPE_IDENTIFIER:
+                case TOKENTYPE_NUMBER:
                 case TOKENTYPE_STRING:
                         printf(":" SV_Fmt, SV_Args(t.val.symbol));
                         break;

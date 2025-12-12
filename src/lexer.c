@@ -1,5 +1,67 @@
 #include "lexer.h"
 
+enum CharClass {
+        C_OTHER = 0,
+        C_DIGIT,
+        C_HEX,
+        C_DOT,
+        C_E,
+        C_SIGN,
+        C_UNDERSCORE,
+        C_LAST
+};
+
+static inline enum CharClass classify(char c) {
+        if (c == '_') return C_UNDERSCORE;
+        if (c == '.') return C_DOT;
+        if (c == 'e' || c == 'E') return C_E;
+        if (c == '+' || c == '-') return C_SIGN;
+        if (c >= '0' && c <= '9') return C_DIGIT;
+        if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) return C_HEX;
+        return C_OTHER;
+}
+
+enum {
+        SERR = 0,
+        S_START,
+        S_INT,
+        S_DOT,
+        S_FRAC,
+        S_EXP,
+        S_EXPSIGN,
+        S_EXPDIG,
+        S_HEX,
+        S_LAST
+};
+
+// transitions[state][charclass]
+static const unsigned char DFA[S_LAST][C_LAST] = {
+    /*             O            D      H      .      E          S         _*/
+    [SERR]      = {SERR,     SERR,  SERR,  SERR,  SERR,      SERR,     SERR},
+    [S_START]   = {SERR,    S_INT,  SERR,  SERR,  SERR,      SERR,     SERR},
+    [S_INT]     = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT},
+    [S_DOT]     = {SERR,   S_FRAC,  SERR,  SERR,  SERR,      SERR,     SERR},
+    [S_FRAC]    = {SERR,   S_FRAC,  SERR,  SERR, S_EXP,      SERR,   S_FRAC},
+    [S_EXP]     = {SERR, S_EXPDIG,  SERR,  SERR,  SERR, S_EXPSIGN,     SERR},
+    [S_EXPSIGN] = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR,     SERR},
+    [S_EXPDIG]  = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR, S_EXPDIG},
+    [S_HEX]     = {SERR,    S_HEX, S_HEX,  SERR,  SERR,      SERR,    S_HEX},
+};
+
+static inline bool try_hex(const char* p, const char* end, const char** out) {
+        if (!(p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))) return false;
+
+        const char* q = p + 2;
+        if (q >= end) return false;
+        if (!isxdigit(*q)) return false;
+
+        q++;
+        while (q < end && (isxdigit(*q) || *q == '_')) q++;
+
+        *out = q;
+        return true;
+}
+
 bool match_IDENTIFIER(Lexer* lx, Token* out);
 bool match_NUMBER(Lexer* lx, Token* out);
 bool match_STRING(Lexer* lx, Token* out);
@@ -100,11 +162,45 @@ bool match_IDENTIFIER(Lexer* lx, Token* out) {
 }
 
 bool match_NUMBER(Lexer* lx, Token* out) {
-        char c = SV_Front(lx->content);
-        if (!SV_IsDigitPredicate(c)) return false;
+        const char* p   = lx->content.data;
+        const char* end = p + lx->content.len;
 
-        Location   loc  = lx->location;
-        StringView sv   = chop_while(lx, SV_IsDigitPredicate);
+        if (!isdigit(*p)) return false;
+
+        Location    loc   = lx->location;
+        const char* start = p;
+
+        /* Hex case first */
+        const char* hexend;
+        if (try_hex(p, end, &hexend)) {
+                StringView sv = NewStringView(start, (u64)(hexend - start));
+                chop_prefix(lx, sv);
+                out->type       = TOKENTYPE_NUMBER;
+                out->val.symbol = sv;
+                out->location   = loc;
+                return true;
+        }
+
+        /* DFA for decimal, float, exponent */
+        unsigned state = S_START;
+
+        while (p < end) {
+                enum CharClass cc   = classify(*p);
+                unsigned       next = DFA[state][cc];
+
+                if (next == SERR) break;
+
+                state = next;
+                p++;
+        }
+
+        /* Valid end states */
+        if (!(state == S_INT || state == S_FRAC || state == S_EXPDIG)) {
+                return false;
+        }
+
+        StringView sv = NewStringView(start, (u64)(p - start));
+        chop_prefix(lx, sv);
         out->type       = TOKENTYPE_NUMBER;
         out->val.symbol = sv;
         out->location   = loc;

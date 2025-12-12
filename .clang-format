@@ -6,9 +6,14 @@ ColumnLimit: 80
 
 AllowShortFunctionsOnASingleLine: None
 # AlignAfterOpenBracket: AlwaysBreak
+
 AlignConsecutiveDeclarations: true
 AlignConsecutiveAssignments: true
 AlignConsecutiveMacros: true
+
+AlignArrayOfStructures: Right
+AlignOperands: Align
+
 BinPackArguments: false
 BinPackParameters: false
 
