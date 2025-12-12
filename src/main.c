@@ -102,6 +102,7 @@ static bool parse_args_sv(int*        argc,
 void usage(FILE* stream, const char* const program) {
         fprintf(stream, "USAGE:\n");
         fprintf(stream, "        %s <input_file> [OPTIONS]\n", program);
+        fprintf(stream, "\n");
         fprintf(stream, "OPTIONS: \n");
         fprintf(stream, "        -h, --help      Print this to stdout\n");
         fprintf(stream, "        -p, --pretty    Print tokens with indent\n");
@@ -110,6 +111,13 @@ void usage(FILE* stream, const char* const program) {
 void print_tokens(Token* tokens) {
         for (usize i = 0; i < arr_len(tokens); i++) {
                 Token token = tokens[i];
+                if (token.type == TOKENTYPE_IDENTIFIER) {
+                        printf("%s(" SV_Fmt ")\n",
+                               TokenTypeToString(token.type),
+                               SV_Args(token.val.symbol));
+                        continue;
+                }
+
                 printf("%s\n", TokenTypeToString(token.type));
         }
 }
@@ -141,7 +149,13 @@ void print_tokens_formatted(Token* tokens) {
                 }
 
                 // Print token
-                printf("%s ", TokenTypeToString(token.type));
+                if (token.type == TOKENTYPE_IDENTIFIER) {
+                        printf("%s(" SV_Fmt ") ",
+                               TokenTypeToString(token.type),
+                               SV_Args(token.val.symbol));
+                } else {
+                        printf("%s ", TokenTypeToString(token.type));
+                }
 
                 // Update indentation AFTER printing
                 if (is_lbrace) indent++;
