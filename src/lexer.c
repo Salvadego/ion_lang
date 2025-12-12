@@ -1,8 +1,21 @@
 #include "lexer.h"
 
-static inline const char* TokenTypeToString(TokenType t) {
-        return (t >= 0 && t < TokensCount) ? TokenTypeName[t] : "Unknown";
-}
+bool match_IDENTIFIER(Lexer* lx, Token* out);
+bool match_NUMBER(Lexer* lx, Token* out);
+bool match_STRING(Lexer* lx, Token* out);
+bool match_CHAR(Lexer* lx, Token* out);
+bool match_EOF(Lexer* lx, Token* out);
+
+// Complex matchers (number, string, ident)
+static const TokenMatcher ComplexMatchers[] = {
+#define MULTI_LITERAL_DEF(...)
+#define SINGLE_TOKEN_DEF(...)
+#define COMPLEX_TOKEN_DEF(name, printed) match_##printed,
+#include "./def/tokens.def"
+#undef SINGLE_TOKEN_DEF
+#undef COMPLEX_TOKEN_DEF
+#undef MULTI_LITERAL_DEF
+};
 
 Token NewToken(const TokenType  type,
                const TokenValue value,
@@ -32,7 +45,7 @@ Lexer NewLexer(Allocator* alloc, const char* path, const StringView content) {
         };
 }
 
-void lexer_advance_location(Lexer* lexer, StringView sv) {
+void advance_location(Lexer* lexer, StringView sv) {
         for (usize i = 0; i < sv.len; i++) {
                 lexer->location.col += 1;
                 if (sv.data[i] == '\n') {
@@ -42,15 +55,15 @@ void lexer_advance_location(Lexer* lexer, StringView sv) {
         }
 }
 
-StringView lexer_chop_prefix(Lexer* lexer, StringView prefix) {
+StringView chop_prefix(Lexer* lexer, StringView prefix) {
         StringView sv = SV_ChopPrefix(&lexer->content, prefix);
-        lexer_advance_location(lexer, sv);
+        advance_location(lexer, sv);
         return sv;
 }
 
-StringView lexer_chop_while(Lexer* lexer, StringViewPredicate predicate) {
+StringView chop_while(Lexer* lexer, StringViewPredicate predicate) {
         StringView sv = SV_ChopWhile(&lexer->content, predicate);
-        lexer_advance_location(lexer, sv);
+        advance_location(lexer, sv);
         return sv;
 }
 
@@ -58,18 +71,88 @@ bool SV_IsSymbolic(const char c) {
         return c == '_' || (bool)isalnum(c);
 }
 
-bool SV_IsQuotePredicate(const char c) {
+bool SV_IsSimpleQuote(const char c) {
+        return c == '\'';
+}
+
+bool SV_IsNotSimpleQuote(const char c) {
+        return c != '\'';
+}
+
+bool SV_IsDoubleQuote(const char c) {
         return c == '"';
 }
 
-bool SV_IsNotQuotePredicate(const char c) {
+bool SV_IsDoubleNotQuote(const char c) {
         return c != '"';
+}
+
+bool match_IDENTIFIER(Lexer* lx, Token* out) {
+        char c = SV_Front(lx->content);
+        if (!SV_IsAlphaPredicate(c) && c != '_') return false;
+
+        Location   loc  = lx->location;
+        StringView sv   = chop_while(lx, SV_IsSymbolic);
+        out->type       = TOKENTYPE_IDENTIFIER;
+        out->val.symbol = sv;
+        out->location   = loc;
+        return true;
+}
+
+bool match_NUMBER(Lexer* lx, Token* out) {
+        char c = SV_Front(lx->content);
+        if (!SV_IsDigitPredicate(c)) return false;
+
+        Location   loc  = lx->location;
+        StringView sv   = chop_while(lx, SV_IsDigitPredicate);
+        out->type       = TOKENTYPE_NUMBER;
+        out->val.symbol = sv;
+        out->location   = loc;
+        return true;
+}
+
+bool match_STRING(Lexer* lx, Token* out) {
+        if (SV_Front(lx->content) != '\"') return false;
+
+        Location loc = lx->location;
+
+        chop_prefix(lx, SV("\""));
+        StringView body = chop_while(lx, SV_IsDoubleQuote);
+        chop_prefix(lx, SV("\""));
+
+        out->type       = TOKENTYPE_STRING;
+        out->val.symbol = body;
+        out->location   = loc;
+        return true;
+}
+
+bool match_CHAR(Lexer* lx, Token* out) {
+        if (SV_Front(lx->content) != '\'') return false;
+
+        Location loc = lx->location;
+
+        chop_prefix(lx, SV("\'"));
+        StringView body = chop_while(lx, SV_IsNotSimpleQuote);
+        chop_prefix(lx, SV("\'"));
+
+        out->type       = TOKENTYPE_CHAR;
+        out->val.symbol = body;
+        out->location   = loc;
+        return true;
+}
+
+bool match_EOF(Lexer* lx, Token* out) {
+        if (lx->content.len != 0) return false;
+        out->type       = TOKENTYPE_EOF;
+        out->val.symbol = SV("");
+        out->location   = lx->location;
+        return true;
 }
 
 Token lexer_chop(Lexer* lexer) {
         Token result =
             NewToken(TOKENTYPE_EOF, (TokenValue){0}, lexer->location);
-        (void)lexer_chop_while(lexer, SV_IsSpacePredicate);
+        (void)chop_while(lexer, SV_IsSpacePredicate);
 
         if (lexer->content.len == 0) {
                 return result;
@@ -77,35 +160,29 @@ Token lexer_chop(Lexer* lexer) {
 
         Location loc = lexer->location;
 
-        for (usize i = 0; i < TokensCount; i++) {
-                StringView lit = NewStringView(TokenMatchTable[i].lit_data,
-                                               TokenMatchTable[i].lit_len);
-                if (lit.len > 0 && SV_HasPrefix(lexer->content, lit)) {
-                        StringView chopped = lexer_chop_prefix(lexer, lit);
-                        TokenValue val     = {.symbol = chopped};
-                        return NewToken(TokenMatchTable[i].type, val, loc);
+        char      c = SV_Front(lexer->content);
+        TokenType t = SingleCharTable[(unsigned char)c];
+        if (t != 0) {
+                StringView sv = chop_prefix(lexer, NewStringView(&c, 1));
+                TokenValue v  = {sv};
+                return NewToken(t, v, loc);
+        }
+
+        for (usize i = 0; i < MultiLiteralCount; i++) {
+                StringView lit = NewStringView(MultiLiteralTable[i].lit,
+                                               MultiLiteralTable[i].len);
+                if (SV_HasPrefix(lexer->content, lit)) {
+                        StringView sv = chop_prefix(lexer, lit);
+                        TokenValue v  = {sv};
+                        return NewToken(MultiLiteralTable[i].type, v, loc);
                 }
         }
 
-        char c0 = SV_Front(lexer->content);
-        if (SV_IsAlphaPredicate(c0)) {
-                StringView id = lexer_chop_while(lexer, SV_IsSymbolic);
-                TokenValue v  = {.symbol = id};
-                return NewToken(TOKENTYPE_IDENTIFIER, v, loc);
-        }
-
-        if (SV_IsDigitPredicate(c0)) {
-                StringView id = lexer_chop_while(lexer, SV_IsDigitPredicate);
-                TokenValue v  = {.symbol = id};
-                return NewToken(TOKENTYPE_NUMBER, v, loc);
-        }
-
-        if (SV_IsQuotePredicate(c0)) {
-                (void)lexer_chop_prefix(lexer, SV("\""));  // consume quote
-                StringView id = lexer_chop_while(lexer, SV_IsNotQuotePredicate);
-                (void)lexer_chop_prefix(lexer, SV("\""));  // consume quote
-                TokenValue v = {.symbol = id};
-                return NewToken(TOKENTYPE_STRING, v, loc);
+        for (usize i = 0; i < ComplexMatcherCount; i++) {
+                Token out;
+                if (ComplexMatchers[i](lexer, &out)) {
+                        return out;
+                }
         }
 
         printf("%c", SV_Front(lexer->content));

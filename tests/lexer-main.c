@@ -2,10 +2,10 @@
 #include <stdlib.h>
 
 #define BSTD_IMPL
-#include "core/utils.h"
-#include "heap/arena.h"
 #include "allocator.h"
+#include "core/utils.h"
 #include "error/error.h"
+#include "heap/arena.h"
 #include "io/io.h"
 #include "lexer.h"
 #include "string/string_view.h"

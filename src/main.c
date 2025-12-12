@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "allocator.h"
-
 #define BSTD_IMPL
-
+#include "allocator.h"
 #include "heap/arena.h"
 #include "io/io.h"
 #include "lexer.h"
+#include "string/string_view.h"
 
 typedef struct {
         const char* input_file;
@@ -108,9 +107,10 @@ void print_token(Token token) {
         switch (token.type) {
                 case TOKENTYPE_IDENTIFIER:
                 case TOKENTYPE_STRING:
+                case TOKENTYPE_CHAR:
                 case TOKENTYPE_NUMBER:
-                        printf(":" SV_Fmt, SV_Args(token.val.symbol));
-                case TOKENTYPE_EOF:
+                        printf(": " SV_Fmt, SV_Args(token.val.symbol));
+                        return;
                 case TOKENTYPE_LPAREN:
                 case TOKENTYPE_RPAREN:
                 case TOKENTYPE_LBRACE:
@@ -134,6 +134,9 @@ void print_token(Token token) {
                 case TOKENTYPE_MOD:
                 case TOKENTYPE_PROCEDURE:
                 case TOKENTYPE_RETURN:
+                case TOKENTYPE_EOF:
+                case TOKENTYPE_INVALID:
+                case TOKENTYPE_IMPORT:
                         break;
         }
 }
