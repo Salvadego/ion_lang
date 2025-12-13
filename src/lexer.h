@@ -3,6 +3,7 @@
 #define FRONT_LEXER_H
 
 #include "collections/arrays.h"
+#include "string/string_builder.h"
 #include "string/string_view.h"
 
 typedef enum {
@@ -52,10 +53,11 @@ typedef struct {
 } MultiLiteral;
 
 typedef struct Lexer {
-        StringView content;
-        Location   location;
-        Token*     tokens;
-        Allocator* allocator;
+        StringView     content;
+        StringBuilder* temp;
+        Location       location;
+        Token*         tokens;
+        Allocator*     allocator;
 } Lexer;
 
 typedef bool (*TokenMatcher)(Lexer*, Token* out);
@@ -84,17 +86,6 @@ static const MultiLiteral MultiLiteralTable[] = {
 };
 
 const usize MultiLiteralCount = ArrayCount(MultiLiteralTable);
-
-static const TokenType ComplexMatcherTypes[] = {
-#define MULTI_LITERAL_DEF(...)
-#define SINGLE_TOKEN_DEF(...)
-#define COMPLEX_TOKEN_DEF(name, printed) name,
-#include "./def/tokens.def"
-#undef COMPLEX_TOKEN_DEF
-#undef COMPLEX_TOKEN_DEF
-#undef MULTI_LITERAL_DEF
-};
-const usize ComplexMatcherCount = ArrayCount(ComplexMatcherTypes);
 
 Token NewToken(TokenType type, TokenValue value, Location loc);
 Lexer NewLexer(Allocator* allocator, const char* path, StringView content);

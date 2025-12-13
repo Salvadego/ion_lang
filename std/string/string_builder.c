@@ -34,6 +34,10 @@ Error SB_Write(StringBuilder* sb, const u8* data, usize len) {
         return NewNoneError();
 }
 
+Error SB_WriteChar(StringBuilder* sb, const char c) {
+        return SB_Write(sb, (const u8*)&c, 1);
+}
+
 Error SB_WriteSV(StringBuilder* sb, StringView sv) {
         if (!sb) return NewGenericError("StringBuilder is null");
         return SB_Write(sb, (const u8*)sv.data, sv.len);
@@ -73,9 +77,17 @@ StringView SB_String(StringBuilder* sb) {
         return s;
 }
 
-void SB_ToString(StringBuilder* sb, StringView* sv) {
-        *sv = (StringView){
-            .data = (ConstC_String)sb->buf.data,
-            .len  = sb->buf.len,
-        };
+inline void SB_Clear(StringBuilder* sb) {
+        if (sb && sb->buf.data) {
+                sb->buf.len = 0;
+        }
+}
+
+Error SB_Clone(StringBuilder* sb, StringView* sv) {
+        ResultPtr data_copy =
+            Allocator_Alloc(sb->buf.alloc, sb->buf.len * sb->buf.data[0]);
+        if (data_copy.is_error) return data_copy.error;
+        MemoryCopy(data_copy.value, sb->buf.data, sb->buf.len);
+        *sv = NewStringView((const char*)data_copy.value, sb->buf.len);
+        return NewNoneError();
 }

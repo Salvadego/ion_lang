@@ -20,13 +20,6 @@ typedef enum {
         AllocatorCodeAlreadyDestroyed = 101,
 } AllocatorErrorCode;
 
-// IO error codes are >= 200 and < 300
-typedef enum {
-        IOErrorOpenFailed  = 200,
-        IOErrorReadFailed  = 201,
-        IOErrorWriteFailed = 202
-} IOErrorCode;
-
 // Vector error codes are >= 300 and < 400
 typedef enum {
         VectorCodeInvalidArgument = 300,
