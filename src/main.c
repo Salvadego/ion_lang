@@ -141,6 +141,7 @@ void print_token(Token token) {
                 case TOKENTYPE_RBRACKET:
                 case TOKENTYPE_STRUCT:
                 case TOKENTYPE_ENUM:
+                case TOKENTYPE_COMMENT:
                         break;
         }
 }

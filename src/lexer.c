@@ -1,5 +1,10 @@
 #include "lexer.h"
 
+#include <stdio.h>
+
+#include "core/utils.h"
+#include "string/string_builder.h"
+
 enum CharClass {
         CLASS_OTHER = 0,
         CLASS_DIGIT,
@@ -8,10 +13,14 @@ enum CharClass {
         CLASS_E,
         CLASS_SIGN,
         CLASS_UNDERSCORE,
+        CLASS_S_HEX,
+        CLASS_S_OCT,
         CLASS_LAST
 };
 
 static inline enum CharClass classify(char c) {
+        if (c == 'x' || c == 'X') return CLASS_S_HEX;
+        if (c == 'o' || c == 'O') return CLASS_S_OCT;
         if (c == '_') return CLASS_UNDERSCORE;
         if (c == '.') return CLASS_DOT;
         if (c == 'e' || c == 'E') return CLASS_E;
@@ -21,65 +30,36 @@ static inline enum CharClass classify(char c) {
         return CLASS_OTHER;
 }
 
-enum {
+typedef enum {
         SERR = 0,
         S_START,
-        S_INT,
         S_DOT,
-        S_FRAC,
-        S_EXP,
         S_EXPSIGN,
+        S_EXP,
+        S_INT,
         S_EXPDIG,
+        S_FRAC,
+        S_ZERO,
         S_HEX,
+        S_OCT,
         S_LAST
-};
+} TOKEN_STATE_NUMBER;
 
 // transitions[state][charclass]
-static const unsigned char NUMBER_DFA[S_LAST][CLASS_LAST] = {
-    /*                O         D      H      .      E          S         _*/
-    [SERR]      = {SERR,     SERR,  SERR,  SERR,  SERR,      SERR,     SERR},
-    [S_START]   = {SERR,    S_INT,  SERR,  SERR,  SERR,      SERR,     SERR},
-    [S_INT]     = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT},
-    [S_DOT]     = {SERR,   S_FRAC,  SERR,  SERR,  SERR,      SERR,     SERR},
-    [S_FRAC]    = {SERR,   S_FRAC,  SERR,  SERR, S_EXP,      SERR,   S_FRAC},
-    [S_EXP]     = {SERR, S_EXPDIG,  SERR,  SERR,  SERR, S_EXPSIGN,     SERR},
-    [S_EXPSIGN] = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR,     SERR},
-    [S_EXPDIG]  = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR, S_EXPDIG},
-    [S_HEX]     = {SERR,    S_HEX, S_HEX,  SERR,  SERR,      SERR,    S_HEX},
-};
-
-// 12e+
-// 12.34e-56
-
-static inline bool try_hex(const char* p, const char* end, const char** out) {
-        if (!(p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))) return false;
-
-        const char* q = p + 2;
-        if (q >= end) return false;
-        if (!isxdigit(*q)) return false;
-
-        q++;
-        while (q < end && (isxdigit(*q) || *q == '_')) q++;
-
-        *out = q;
-        return true;
-}
-
-bool match_IDENTIFIER(Lexer* lx, Token* out);
-bool match_NUMBER(Lexer* lx, Token* out);
-bool match_STRING(Lexer* lx, Token* out);
-bool match_CHAR(Lexer* lx, Token* out);
-bool match_EOF(Lexer* lx, Token* out);
-
-// Complex matchers (number, string, ident)
-static const TokenMatcher ComplexMatchers[] = {
-#define MULTI_LITERAL_DEF(...)
-#define SINGLE_TOKEN_DEF(...)
-#define COMPLEX_TOKEN_DEF(name, printed) match_##printed,
-#include "./def/tokens.def"
-#undef SINGLE_TOKEN_DEF
-#undef COMPLEX_TOKEN_DEF
-#undef MULTI_LITERAL_DEF
+static const TOKEN_STATE_NUMBER NUMBER_DFA[S_LAST][CLASS_LAST] = {
+    /*                O         D      H      .      E          S         _
+       S_H S_O*/
+    [SERR]    = {SERR,     SERR,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
+    [S_START] = {SERR,    S_INT,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
+    [S_INT]   = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT,  SERR,  SERR},
+    [S_ZERO]  = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT, S_HEX, S_OCT},
+    [S_DOT]   = {SERR,   S_FRAC,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
+    [S_FRAC]  = {SERR,   S_FRAC,  SERR,  SERR, S_EXP,      SERR,   S_FRAC,  SERR,  SERR},
+    [S_EXP]   = {SERR, S_EXPDIG,  SERR,  SERR,  SERR, S_EXPSIGN,     SERR,  SERR,  SERR},
+    [S_EXPSIGN] = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
+    [S_EXPDIG] = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR, S_EXPDIG,  SERR,  SERR},
+    [S_HEX]    = {SERR,    S_HEX, S_HEX,  SERR, S_HEX,      SERR,    S_HEX,  SERR,  SERR},
+    [S_OCT]    = {SERR,    S_OCT,  SERR,  SERR,  SERR,      SERR,    S_OCT,  SERR,  SERR},
 };
 
 Token NewToken(const TokenType  type,
@@ -101,12 +81,18 @@ Location NewLocation(const char* path, const usize col, const usize row) {
 }
 
 Lexer NewLexer(Allocator* alloc, const char* path, const StringView content) {
-        Token* tokens = arr_new(alloc, Token);
+        Token*    tokens = arr_new(alloc, Token);
+        ResultPtr ptr    = Allocator_AllocType(alloc, StringBuilder);
+        if (ptr.is_error) Fatal(ptr.error);
+        StringBuilder* sb = ptr.value;
+        SB_Init(sb, alloc, Kilobytes(1));
+
         return (Lexer){
             .location  = NewLocation(path, 1, 1),
             .content   = content,
             .allocator = alloc,
             .tokens    = tokens,
+            .temp      = sb,
         };
 }
 
@@ -152,6 +138,10 @@ bool SV_IsNotDoubleQuote(const char c) {
         return c != '"';
 }
 
+bool SV_IsNotNewLine(const char c) {
+        return c != '\n';
+}
+
 bool match_IDENTIFIER(Lexer* lx, Token* out) {
         char c = SV_Front(lx->content);
         if (!SV_IsAlphaPredicate(c) && c != '_') return false;
@@ -173,23 +163,16 @@ bool match_NUMBER(Lexer* lx, Token* out) {
         Location    loc   = lx->location;
         const char* start = p;
 
-        /* Hex case first */
-        const char* hexend;
-        if (try_hex(p, end, &hexend)) {
-                StringView sv = NewStringView(start, (u64)(hexend - start));
-                chop_prefix(lx, sv);
-                out->type       = TOKENTYPE_NUMBER;
-                out->val.symbol = sv;
-                out->location   = loc;
-                return true;
-        }
+        TOKEN_STATE_NUMBER state = S_START;
 
-        /* DFA for decimal, float, exponent */
-        unsigned state = S_START;
+        if (*p == '0') {
+                state = S_ZERO;
+                p++;
+        };
 
         while (p < end) {
-                enum CharClass cc   = classify(*p);
-                unsigned       next = NUMBER_DFA[state][cc];
+                enum CharClass     cc   = classify(*p);
+                TOKEN_STATE_NUMBER next = NUMBER_DFA[state][cc];
 
                 if (next == SERR) break;
 
@@ -197,8 +180,7 @@ bool match_NUMBER(Lexer* lx, Token* out) {
                 p++;
         }
 
-        /* Valid end states */
-        if (!(state == S_INT || state == S_FRAC || state == S_EXPDIG)) {
+        if (!(state >= S_INT)) {
                 return false;
         }
 
@@ -211,16 +193,48 @@ bool match_NUMBER(Lexer* lx, Token* out) {
 }
 
 bool match_STRING(Lexer* lx, Token* out) {
-        if (SV_Front(lx->content) != '\"') return false;
-
+        if (SV_Front(lx->content) != '"') return false;
         Location loc = lx->location;
-
         chop_prefix(lx, SV("\""));
-        StringView body = chop_while(lx, SV_IsNotDoubleQuote);
-        chop_prefix(lx, SV("\""));
+        SB_Clear(lx->temp);
 
+        while (lx->content.len > 0) {
+                char c = SV_Front(lx->content);
+                chop_prefix(lx, NewStringView(&c, 1));
+                if (c == '"') break;
+
+                if (c == '\\') {  // escape sequence
+                        char esc = SV_Front(lx->content);
+                        chop_prefix(lx, NewStringView(&esc, 1));
+                        switch (esc) {
+                                case 'n':
+                                        SB_WriteChar(lx->temp, '\n');
+                                        break;
+                                case 't':
+                                        SB_WriteChar(lx->temp, '\t');
+                                        break;
+                                case '\\':
+                                        SB_WriteChar(lx->temp, '\\');
+                                        break;
+                                case '"':
+                                        SB_WriteChar(lx->temp, '"');
+                                        break;
+                                default:
+                                        SB_WriteChar(lx->temp, esc);
+                                        break;
+                        }
+                } else {
+                        SB_WriteChar(lx->temp, c);
+                }
+        }
+
+        StringView sv  = {0};
+        Error      err = SB_Clone(lx->temp, &sv);
+        if (isError(err)) {
+                Fatal(err);
+        }
         out->type       = TOKENTYPE_STRING;
-        out->val.symbol = body;
+        out->val.symbol = sv;
         out->location   = loc;
         return true;
 }
@@ -240,12 +254,37 @@ bool match_CHAR(Lexer* lx, Token* out) {
         return true;
 }
 
-bool match_EOF(Lexer* lx, Token* out) {
-        if (lx->content.len != 0) return false;
-        out->type       = TOKENTYPE_EOF;
-        out->val.symbol = SV("");
-        out->location   = lx->location;
-        return true;
+bool match_COMMENT(Lexer* lx, Token* out) {
+        if (SV_Front(lx->content) != '/' || lx->content.len < 2) return false;
+        Location loc = lx->location;
+
+        char next = lx->content.data[1];
+        if (next == '/') {  // line comment
+                chop_prefix(lx, NewStringView(lx->content.data, 2));
+                StringView sv   = chop_while(lx, SV_IsNotNewLine);
+                out->type       = TOKENTYPE_COMMENT;
+                out->val.symbol = sv;
+                out->location   = loc;
+                return true;
+        } else if (next == '*') {  // block comment
+                chop_prefix(lx, NewStringView(lx->content.data, 2));
+                const char* start = lx->content.data;
+                while (lx->content.len > 1) {
+                        if (lx->content.data[0] == '*' &&
+                            lx->content.data[1] == '/')
+                                break;
+                        chop_prefix(lx, NewStringView(lx->content.data, 1));
+                }
+                chop_prefix(lx, NewStringView("*/", 2));
+                StringView sv = NewStringView(
+                    start, (u64)lx->content.data - (u64)start - 2);
+                out->type       = TOKENTYPE_COMMENT;
+                out->val.symbol = sv;
+                out->location   = loc;
+                return true;
+        }
+
+        return false;
 }
 
 Token lexer_chop(Lexer* lexer) {
@@ -259,13 +298,7 @@ Token lexer_chop(Lexer* lexer) {
 
         Location loc = lexer->location;
 
-        char      c = SV_Front(lexer->content);
-        TokenType t = SingleCharTable[(unsigned char)c];
-        if (t != 0) {
-                StringView sv = chop_prefix(lexer, NewStringView(&c, 1));
-                TokenValue v  = {sv};
-                return NewToken(t, v, loc);
-        }
+        char c = SV_Front(lexer->content);
 
         for (usize i = 0; i < MultiLiteralCount; i++) {
                 StringView lit = NewStringView(MultiLiteralTable[i].lit,
@@ -277,14 +310,39 @@ Token lexer_chop(Lexer* lexer) {
                 }
         }
 
-        for (usize i = 0; i < ComplexMatcherCount; i++) {
-                Token out;
-                if (ComplexMatchers[i](lexer, &out)) {
-                        return out;
-                }
+        if (isdigit(c)) {
+                Token tok;
+                if (match_NUMBER(lexer, &tok)) return tok;
         }
 
-        printf("%c", SV_Front(lexer->content));
+        if (isalpha(c) || c == '_') {
+                Token tok;
+                if (match_IDENTIFIER(lexer, &tok)) return tok;
+        }
+
+        if (c == '"') {
+                Token tok;
+                if (match_STRING(lexer, &tok)) return tok;
+        }
+
+        if (c == '\'') {
+                Token tok;
+                if (match_CHAR(lexer, &tok)) return tok;
+        }
+
+        if (c == '/') {
+                Token tok;
+                if (match_COMMENT(lexer, &tok)) return tok;
+        }
+
+        TokenType t = SingleCharTable[(u8)c];
+        if (t != 0) {
+                StringView sv = chop_prefix(lexer, NewStringView(&c, 1));
+                TokenValue v  = {sv};
+                return NewToken(t, v, loc);
+        }
+
+        printf("%c\n", SV_Front(lexer->content));
         unreachable;
         return NewToken(
             TOKENTYPE_EOF, (TokenValue){.symbol = lexer->content}, loc);
@@ -292,10 +350,15 @@ Token lexer_chop(Lexer* lexer) {
 
 bool Lex(Lexer* lexer) {
         Token tok = lexer_chop(lexer);
-        arr_append(lexer->tokens, tok);
+        if (tok.type != TOKENTYPE_COMMENT) {
+                arr_append(lexer->tokens, tok);
+        }
 
         while (tok.type != TOKENTYPE_EOF) {
                 tok = lexer_chop(lexer);
+                if (tok.type == TOKENTYPE_COMMENT) {
+                        continue;
+                }
                 arr_append(lexer->tokens, tok);
         }
 
