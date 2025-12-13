@@ -1,17 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "allocator.h"
-
 #define BSTD_IMPL
-
-#include "collections/arrays.h"
-#include "core/utils.h"
-#include "error/error.h"
+#include "allocator.h"
 #include "heap/arena.h"
 #include "io/io.h"
 #include "lexer.h"
-#include "string/string_builder.h"
 #include "string/string_view.h"
 
 typedef struct {
@@ -108,17 +102,55 @@ void usage(FILE* stream, const char* const program) {
         fprintf(stream, "        -p, --pretty    Print tokens with indent\n");
 }
 
+void print_token(Token token) {
+        printf("%s", TokenTypeToString(token.type));
+        switch (token.type) {
+                case TOKENTYPE_IDENTIFIER:
+                case TOKENTYPE_STRING:
+                case TOKENTYPE_CHAR:
+                case TOKENTYPE_NUMBER:
+                        printf(": " SV_Fmt, SV_Args(token.val.symbol));
+                        return;
+                case TOKENTYPE_LPAREN:
+                case TOKENTYPE_RPAREN:
+                case TOKENTYPE_LBRACE:
+                case TOKENTYPE_RBRACE:
+                case TOKENTYPE_SEMICOLON:
+                case TOKENTYPE_COLON:
+                case TOKENTYPE_COMMA:
+                case TOKENTYPE_PLUS:
+                case TOKENTYPE_MINUS:
+                case TOKENTYPE_UNDERSCORE:
+                case TOKENTYPE_STAR:
+                case TOKENTYPE_SLASH:
+                case TOKENTYPE_EQUAL:
+                case TOKENTYPE_LESSTHAN:
+                case TOKENTYPE_GREATERTHAN:
+                case TOKENTYPE_DOT:
+                case TOKENTYPE_AND:
+                case TOKENTYPE_OR:
+                case TOKENTYPE_NOT:
+                case TOKENTYPE_XOR:
+                case TOKENTYPE_MOD:
+                case TOKENTYPE_PROCEDURE:
+                case TOKENTYPE_RETURN:
+                case TOKENTYPE_EOF:
+                case TOKENTYPE_INVALID:
+                case TOKENTYPE_IMPORT:
+                case TOKENTYPE_LBRACKET:
+                case TOKENTYPE_RBRACKET:
+                case TOKENTYPE_STRUCT:
+                case TOKENTYPE_ENUM:
+                case TOKENTYPE_COMMENT:
+                        break;
+        }
+}
+
 void print_tokens(Token* tokens) {
         for (usize i = 0; i < arr_len(tokens); i++) {
                 Token token = tokens[i];
-                if (token.type == TOKENTYPE_IDENTIFIER) {
-                        printf("%s(" SV_Fmt ")\n",
-                               TokenTypeToString(token.type),
-                               SV_Args(token.val.symbol));
-                        continue;
-                }
-
-                printf("%s\n", TokenTypeToString(token.type));
+                print_token(token);
+                puts("");
         }
 }
 
@@ -134,13 +166,10 @@ void print_tokens_formatted(Token* tokens) {
                 bool is_lbrace = token.type == TOKENTYPE_LBRACE;
                 bool is_rbrace = token.type == TOKENTYPE_RBRACE;
 
-                // Move to next line
                 if (token.location.row > last_line) {
                         last_line = token.location.row;
                         puts("");
 
-                        // RBRACE reduces indentation BEFORE printing on new
-                        // line
                         i32 line_indent = indent - (is_rbrace ? 1 : 0);
                         if (line_indent < 0) line_indent = 0;
 
@@ -148,16 +177,9 @@ void print_tokens_formatted(Token* tokens) {
                                 fputs(tab, stdout);
                 }
 
-                // Print token
-                if (token.type == TOKENTYPE_IDENTIFIER) {
-                        printf("%s(" SV_Fmt ") ",
-                               TokenTypeToString(token.type),
-                               SV_Args(token.val.symbol));
-                } else {
-                        printf("%s ", TokenTypeToString(token.type));
-                }
+                print_token(token);
+                printf(" ");
 
-                // Update indentation AFTER printing
                 if (is_lbrace) indent++;
                 if (is_rbrace) indent--;
         }

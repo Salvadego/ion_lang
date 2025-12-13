@@ -23,11 +23,14 @@ DefineOption(StringBuilder)
 Error SB_Init(StringBuilder* sb, Allocator* alloc, u64 capacity);                        // Create
 Error SB_Free(StringBuilder* sb);                                                        // Destroy
 Error SB_Write( StringBuilder* sb, const u8* data, usize len);                           // Append raw bytes
+Error SB_WriteChar( StringBuilder* sb, char data);                           // Append raw bytes
+StringView SB_String(StringBuilder *sb);
+void SB_Clear(StringBuilder* sb);
 Error SB_WriteSV(StringBuilder* sb, StringView sv);                                      // Append SV
 Error SB_WriteC(StringBuilder* sb, ConstC_String cstr);                                  // Append C-string
 Error SB_EnsureNull(StringBuilder* sb);                                                  // Ensure trailing NUL (writes one but does not count it)
 Slice(u8) SB_Slice(StringBuilder* sb);                                                   // Obtain as non-owning slice
-void SB_ToString(StringBuilder* sb, StringView* sv);
+Error SB_Clone(StringBuilder* sb, StringView* sv);
 // clang-format on
 
 #ifdef BSTD_IMPL

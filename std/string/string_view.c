@@ -182,6 +182,12 @@ inline StringView SV_SubSV(StringView sv, u64 start, u64 end) {
         return NewStringView(sv.data + start, end - start);
 }
 
+inline StringView SV_SubPtr(const char* begin, const char* end) {
+        if (end < begin) end = begin;
+
+        return NewStringView(begin, (usize)(end - begin));
+}
+
 u64 StringCodepointLen(ConstC_String s, u64 len) {
         u64 codepoints = 0;
         for (u64 i = 0; i < len;) {
@@ -311,10 +317,6 @@ inline bool SV_IsAlphaPredicate(const char c) {
 
 inline bool SV_IsAlnumPredicate(const char c) {
         return (bool)isalnum((u32)c);
-}
-
-inline bool SV_IsQuotePredicate(const char c) {
-        return c == '"';
 }
 
 inline bool SV_IsDigitPredicate(const char c) {

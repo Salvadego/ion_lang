@@ -2,41 +2,31 @@
 
 #define FRONT_LEXER_H
 
-#include <stdatomic.h>
-#include <stdio.h>
-
-#include "allocator.h"
 #include "collections/arrays.h"
-#include "core/utils.h"
-#include "error/error.h"
+#include "string/string_builder.h"
 #include "string/string_view.h"
-#include "types.h"
 
 typedef enum {
-#define TOKEN_DEF(name, text, ...) name,
-#include "./def/token.def"
-#undef TOKEN_DEF
+#define SINGLE_TOKEN_DEF(name, ch, printed)    name,
+#define MULTI_LITERAL_DEF(name, text, printed) name,
+#define COMPLEX_TOKEN_DEF(name, printed)       name,
+#include "./def/tokens.def"
+#undef SINGLE_TOKEN_DEF
+#undef MULTI_LITERAL_DEF
+#undef COMPLEX_TOKEN_DEF
 } TokenType;
 
 static const char* TokenTypeName[] = {
-#define TOKEN_DEF(name, text, token_name) [name] = #token_name,
-#include "./def/token.def"
-#undef TOKEN_DEF
+#define SINGLE_TOKEN_DEF(name, ch, printed)    [name] = #printed,
+#define MULTI_LITERAL_DEF(name, text, printed) [name] = #printed,
+#define COMPLEX_TOKEN_DEF(name, printed)       [name] = #printed,
+#include "./def/tokens.def"
+#undef SINGLE_TOKEN_DEF
+#undef MULTI_LITERAL_DEF
+#undef COMPLEX_TOKEN_DEF
 };
 
 static const usize TokensCount = ArrayCount(TokenTypeName);
-
-typedef struct {
-        const char* lit_data;
-        usize       lit_len;
-        TokenType   type;
-} TokenMatch;
-
-static const TokenMatch TokenMatchTable[] = {
-#define TOKEN_DEF(name, text, ...) {text, sizeof(text) - 1, name},
-#include "./def/token.def"
-#undef TOKEN_DEF
-};
 
 typedef struct {
         const char* file_path;
@@ -56,29 +46,55 @@ typedef struct {
         Location   location;
 } Token;
 
-#define Token_Fmt "(%s:%zu:%zu) %s " SV_Fmt
-#define Token_Args(__token__)                                             \
-        token.location.file_path, token.location.row, token.location.col, \
-            TokenTypeToString(token.type), SV_Args(token.val.symbol)
-
-Token NewToken(const TokenType  type,
-               const TokenValue value,
-               const Location   location);
-
 typedef struct {
-        StringView content;
-        Location   location;
-        Token*     tokens;
-        Allocator* allocator;
+        const char* lit;
+        usize       len;
+        TokenType   type;
+} MultiLiteral;
+
+typedef struct Lexer {
+        StringView     content;
+        StringBuilder* temp;
+        Location       location;
+        Token*         tokens;
+        Allocator*     allocator;
 } Lexer;
 
-Lexer NewLexer(Allocator*       allocator,
-               const char*      path,
-               const StringView content);
+typedef bool (*TokenMatcher)(Lexer*, Token* out);
+
+// Single character dispatch (256 table)
+static const TokenType SingleCharTable[256] = {
+#define MULTI_LITERAL_DEF(...)
+#define COMPLEX_TOKEN_DEF(...)
+#define SINGLE_TOKEN_DEF(name, ch, printed) [(unsigned char) ch] = name,
+#include "./def/tokens.def"
+#undef MULTI_LITERAL_DEF
+#undef COMPLEX_TOKEN_DEF
+#undef SINGLE_TOKEN_DEF
+};
+
+// Multi literal tokens
+
+static const MultiLiteral MultiLiteralTable[] = {
+#define MULTI_LITERAL_DEF(name, text, printed) {text, sizeof(text) - 1, name},
+#define SINGLE_TOKEN_DEF(...)
+#define COMPLEX_TOKEN_DEF(...)
+#include "./def/tokens.def"
+#undef MULTI_LITERAL_DEF
+#undef COMPLEX_TOKEN_DEF
+#undef SINGLE_TOKEN_DEF
+};
+
+const usize MultiLiteralCount = ArrayCount(MultiLiteralTable);
+
+Token NewToken(TokenType type, TokenValue value, Location loc);
+Lexer NewLexer(Allocator* allocator, const char* path, StringView content);
 Token lexer_chop(Lexer* lexer);
 bool  Lex(Lexer* lexer);
 
-static const char* TokenTypeToString(TokenType t);
+static inline const char* TokenTypeToString(TokenType t) {
+        return (t < TokensCount) ? TokenTypeName[t] : "Unknown";
+}
 
 #ifdef BSTD_IMPL
 #        define FRONT_LEXER_IMPL
@@ -87,4 +103,4 @@ static const char* TokenTypeToString(TokenType t);
 #        include "lexer.c"
 #endif
 
-#endif  // !FRONT_LEXER_H
+#endif

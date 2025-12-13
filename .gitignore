@@ -3,3 +3,5 @@ bin/
 compile_commands.json
 *.o
 .history
+*.out
+*.diff

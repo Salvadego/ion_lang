@@ -39,6 +39,7 @@ char       SV_Front(StringView sv);                                             
 char       SV_Back(StringView sv);                                                      // Get the last character
 bool       SV_Equal(StringView a, StringView b);                                        // Compares two strings
 StringView SV_SubSV(StringView sv, u64 start, u64 end);                                 // Get a substring
+StringView SV_SubPtr(const char* begin, const char* end);
 bool       SV_HasPrefix(StringView sv, StringView pre);                                 // Checks if sv starts with pre
 bool       SV_HasSuffix(StringView sv, StringView suf);                                 // Checks if sv ends with suf
 StringView SV_ChopStartingBytes(StringView* sv, u64 n);                                 // pointer math, remove first n bytes and return the removed into sv

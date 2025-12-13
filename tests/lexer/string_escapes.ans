@@ -1,0 +1,7 @@
+STRING:Hello
+STRING:Hello
+World
+STRING:Escaped quote: " ok
+STRING:Tab	Test
+STRING:Unicode é só bytes, não validar aqui
+EOF
