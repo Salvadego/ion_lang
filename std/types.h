@@ -27,7 +27,7 @@ typedef double f64;
 
 // Boolean.
 typedef i32 bool;
-#define true 1
+#define true  1
 #define false 0
 
 // Byte, word, dword, qword.

@@ -88,7 +88,7 @@ bool bstd_vm_decommit(opaque start, usize size) {
 #                include <sys/mman.h>
 
 #                if defined(MADV_DONTNEED)
-        rc2     = madvise(start, size, MADV_DONTNEED);
+        rc2 = madvise(start, size, MADV_DONTNEED);
 #                elif defined(POSIX_MADV_DONTNEED)
         rc2 = posix_madvise(start, size, POSIX_MADV_DONTNEED);
 #                else

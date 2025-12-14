@@ -71,9 +71,9 @@
          sizeof(T))
 
 #define Kilobytes(count) (u64)((count) * (u64)1024)
-#define Megabytes(count) (u64)((count)*Kilobytes(1024))
-#define Gigabytes(count) (u64)((count)*Megabytes(1024))
-#define Terabytes(count) (u64)((count)*Gigabytes(1024))
+#define Megabytes(count) (u64)((count) * Kilobytes(1024))
+#define Gigabytes(count) (u64)((count) * Megabytes(1024))
+#define Terabytes(count) (u64)((count) * Gigabytes(1024))
 
 #define Min(a, b)             (((a) < (b)) ? (a) : (b))
 #define Max(a, b)             (((a) > (b)) ? (a) : (b))

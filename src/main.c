@@ -142,6 +142,8 @@ void print_token(Token token) {
                 case TOKENTYPE_STRUCT:
                 case TOKENTYPE_ENUM:
                 case TOKENTYPE_COMMENT:
+                case TOKENTYPE_IF:
+                case TOKENTYPE_ELSE:
                         break;
         }
 }
@@ -154,10 +156,9 @@ void print_tokens(Token* tokens) {
         }
 }
 
-void print_tokens_formatted(Token* tokens) {
-        const char* tab       = "    ";
-        usize       last_line = 1;
-        i32         indent    = 0;
+void print_tokens_pretty(Token* tokens) {
+        usize last_line = 1;
+        i32   indent    = 0;
 
         for (usize i = 0; i < arr_len(tokens); i++) {
                 Token token = tokens[i];
@@ -173,8 +174,7 @@ void print_tokens_formatted(Token* tokens) {
                         i32 line_indent = indent - (is_rbrace ? 1 : 0);
                         if (line_indent < 0) line_indent = 0;
 
-                        for (i32 t = 0; t < line_indent; t++)
-                                fputs(tab, stdout);
+                        printf("%*s", indent * 4 * line_indent, " ");
                 }
 
                 print_token(token);
@@ -199,7 +199,7 @@ void Lexerize(Allocator* arena, Args args) {
         }
 
         if (args.is_pretty) {
-                print_tokens_formatted(lexer.tokens);
+                print_tokens_pretty(lexer.tokens);
                 return;
         }
         print_tokens(lexer.tokens);

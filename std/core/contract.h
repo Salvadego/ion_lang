@@ -27,7 +27,7 @@
 #define Sign(name, type)                                            \
         static const name##VTable type##_##name##_vtable;           \
         static inline name        type##_As##name(type* obj) {      \
-                       return (name){obj, &type##_##name##_vtable}; \
+                return (name){obj, &type##_##name##_vtable}; \
         }                                                           \
         static const name##VTable type##_##name##_vtable
 
