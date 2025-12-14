@@ -1,0 +1,2 @@
+import("io.fs"); import("std.string");
+proc test(a:i32,b:f32,c:[]u8)void{println("A");if(a<10){a=a+1;}else{b=b-1;}return;}
