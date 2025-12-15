@@ -7,31 +7,38 @@
 
 enum CharClass {
         CLASS_OTHER = 0,
-        CLASS_DIGIT,
-        CLASS_HEX,
+        CLASS_0,
+        CLASS_1,
+        CLASS_2_7,
+        CLASS_8_9,
+        CLASS_HEX_AF,
         CLASS_DOT,
         CLASS_E,
         CLASS_SIGN,
         CLASS_UNDERSCORE,
-        CLASS_S_HEX,
-        CLASS_S_OCT,
         CLASS_LAST
 };
 
 static inline enum CharClass classify(char c) {
-        if (c == 'x' || c == 'X') return CLASS_S_HEX;
-        if (c == 'o' || c == 'O') return CLASS_S_OCT;
         if (c == '_') return CLASS_UNDERSCORE;
         if (c == '.') return CLASS_DOT;
         if (c == 'e' || c == 'E') return CLASS_E;
         if (c == '+' || c == '-') return CLASS_SIGN;
-        if (c >= '0' && c <= '9') return CLASS_DIGIT;
-        if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) return CLASS_HEX;
+
+        if (c == '0') return CLASS_0;
+        if (c == '1') return CLASS_1;
+        if (c >= '2' && c <= '7') return CLASS_2_7;
+        if (c >= '8' && c <= '9') return CLASS_8_9;
+
+        if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+                return CLASS_HEX_AF;
+
         return CLASS_OTHER;
 }
 
 typedef enum {
         SERR = 0,
+        S_BAD,
         S_START,
         S_DOT,
         S_EXPSIGN,
@@ -40,27 +47,37 @@ typedef enum {
         S_EXPDIG,
         S_FRAC,
         S_ZERO,
+        S_SHEX,
+        S_SOCT,
+        S_SBIN,
         S_HEX,
         S_OCT,
+        S_BIN,
         S_LAST
-} TOKEN_STATE_NUMBER;
+} token_state_number;
 
 // transitions[state][charclass]
-static const TOKEN_STATE_NUMBER NUMBER_DFA[S_LAST][CLASS_LAST] = {
-    /*                O         D      H      .      E          S         _
-       S_H S_O*/
-    [SERR]    = {SERR,     SERR,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
-    [S_START] = {SERR,    S_INT,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
-    [S_INT]   = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT,  SERR,  SERR},
-    [S_ZERO]  = {SERR,    S_INT,  SERR, S_DOT, S_EXP,      SERR,    S_INT, S_HEX, S_OCT},
-    [S_DOT]   = {SERR,   S_FRAC,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
-    [S_FRAC]  = {SERR,   S_FRAC,  SERR,  SERR, S_EXP,      SERR,   S_FRAC,  SERR,  SERR},
-    [S_EXP]   = {SERR, S_EXPDIG,  SERR,  SERR,  SERR, S_EXPSIGN,     SERR,  SERR,  SERR},
-    [S_EXPSIGN] = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR,     SERR,  SERR,  SERR},
-    [S_EXPDIG] = {SERR, S_EXPDIG,  SERR,  SERR,  SERR,      SERR, S_EXPDIG,  SERR,  SERR},
-    [S_HEX]    = {SERR,    S_HEX, S_HEX,  SERR, S_HEX,      SERR,    S_HEX,  SERR,  SERR},
-    [S_OCT]    = {SERR,    S_OCT,  SERR,  SERR,  SERR,      SERR,    S_OCT,  SERR,  SERR},
+// clang-format off
+static const token_state_number NUMBER_DFA[S_LAST][CLASS_LAST] = {
+    /*                  O       0        1        2-7      8-9     A-F      .      E          S         _ */
+    [SERR]      = {SERR,     SERR,     SERR,     SERR,     SERR,  SERR,  SERR,  SERR,      SERR,     SERR},
+    [S_BAD]     = {SERR,    S_BAD,    S_BAD,    S_BAD,    S_BAD, S_BAD,  SERR,  SERR,      SERR,    S_BAD},
+    [S_START]   = {SERR,   S_ZERO,    S_INT,    S_INT,    S_INT, S_BAD, S_BAD, S_BAD,     S_BAD,    S_BAD},
+    [S_ZERO]    = {SERR,    S_INT,    S_INT,    S_INT,    S_INT, S_BAD, S_DOT, S_EXP,     S_BAD,    S_INT},
+    [S_INT]     = {SERR,    S_INT,    S_INT,    S_INT,    S_INT, S_BAD, S_DOT, S_EXP,     S_BAD,    S_INT},
+    [S_DOT]     = {SERR,   S_FRAC,   S_FRAC,   S_FRAC,   S_FRAC, S_BAD, S_BAD, S_BAD,     S_BAD,    S_BAD},
+    [S_FRAC]    = {SERR,   S_FRAC,   S_FRAC,   S_FRAC,   S_FRAC, S_BAD, S_BAD, S_EXP,     S_BAD,   S_FRAC},
+    [S_EXP]     = {SERR, S_EXPDIG, S_EXPDIG, S_EXPDIG, S_EXPDIG, S_BAD, S_BAD, S_BAD, S_EXPSIGN,    S_BAD},
+    [S_EXPSIGN] = {SERR, S_EXPDIG, S_EXPDIG, S_EXPDIG, S_EXPDIG, S_BAD, S_BAD, S_BAD,     S_BAD,    S_BAD},
+    [S_EXPDIG]  = {SERR, S_EXPDIG, S_EXPDIG, S_EXPDIG, S_EXPDIG, S_BAD, S_BAD, S_BAD,     S_BAD, S_EXPDIG},
+    [S_SBIN]    = {SERR,    S_BIN,    S_BIN,    S_BAD,    S_BAD, S_BAD, S_BAD, S_BAD,     S_BAD,    S_BAD},
+    [S_BIN]     = {SERR,    S_BIN,    S_BIN,    S_BAD,    S_BAD, S_BAD, S_BAD, S_BAD,     S_BAD,    S_BIN},
+    [S_SOCT]    = {SERR,    S_OCT,    S_OCT,    S_OCT,    S_BAD, S_BAD, S_BAD, S_BAD,     S_BAD,    S_BAD},
+    [S_OCT]     = {SERR,    S_OCT,    S_OCT,    S_OCT,    S_BAD, S_BAD, S_BAD, S_BAD,     S_BAD,    S_OCT},
+    [S_SHEX]    = {SERR,    S_HEX,    S_HEX,    S_HEX,    S_HEX, S_HEX, S_BAD, S_BAD,     S_BAD,    S_BAD},
+    [S_HEX]     = {SERR,    S_HEX,    S_HEX,    S_HEX,    S_HEX, S_HEX, S_BAD, S_HEX,     S_BAD,    S_HEX},
 };
+// clang-format on
 
 Token NewToken(const TokenType  type,
                const TokenValue value,
@@ -154,6 +171,10 @@ bool match_IDENTIFIER(Lexer* lx, Token* out) {
         return true;
 }
 
+char lower_ascii(char p) {
+        return p | 32;
+}
+
 bool match_NUMBER(Lexer* lx, Token* out) {
         const char* p   = lx->content.data;
         const char* end = p + lx->content.len;
@@ -163,18 +184,32 @@ bool match_NUMBER(Lexer* lx, Token* out) {
         Location    loc   = lx->location;
         const char* start = p;
 
-        TOKEN_STATE_NUMBER state = S_START;
+        token_state_number state = S_START;
 
-        if (*p == '0') {
-                state = S_ZERO;
-                p++;
-        };
+        if (*p == '0' && p + 1 < end) {
+                char c = lower_ascii(p[1]);
+                switch (c) {
+                        case 'b':
+                                state = S_BIN;
+                                p += 2;
+                                break;
+                        case 'o':
+                                state = S_OCT;
+                                p += 2;
+                                break;
+                        case 'x':
+                                state = S_HEX;
+                                p += 2;
+                                break;
+                }
+        }
 
         while (p < end) {
                 enum CharClass     cc   = classify(*p);
-                TOKEN_STATE_NUMBER next = NUMBER_DFA[state][cc];
+                token_state_number next = NUMBER_DFA[state][cc];
 
                 if (next == SERR) break;
+                if (next == S_BAD) return false;
 
                 state = next;
                 p++;
