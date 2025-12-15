@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #define BSTD_IMPL
+#include "heap/vm_arena.h"
 #include "allocator.h"
 #include "core/utils.h"
 #include "error/error.h"
@@ -37,8 +38,10 @@ int main(int argc, char** argv) {
 
         const char* path = argv[1];
 
-        Allocator arena = {0};
-        With(arena = NewVMArena(Gigabytes(1)), Allocator_Destroy(&arena)) {
+        Allocator    arena = {0};
+        VMArenaState state = {0};
+        With(arena = NewVMArena(&state, Gigabytes(1)),
+             Allocator_Destroy(&arena)) {
                 StringView file_data = {0};
                 Error      err       = IO_ReadFile(&arena, path, &file_data);
                 if (isError(err)) {
