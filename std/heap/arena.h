@@ -9,6 +9,7 @@
 
 #include "allocator.h"
 #include "types.h"
+#include "platform/vm.h"
 #include "vm_arena.h"
 
 typedef struct Arena Arena;
@@ -71,9 +72,9 @@ static inline Allocator NewArenaResizable(u64 capacity) {
         return a;
 }
 
-static inline Allocator NewVMArena(u64 capacity) {
+static inline Allocator NewVMArena(VMArenaState* s, u64 capacity) {
         Allocator a;
-        VMArenaAllocator_init(&a, capacity);
+        VMArenaAllocator_init(&a, s, capacity);
         return a;
 }
 

@@ -17,7 +17,7 @@ typedef struct {
         VMArenaState*          state;
 } VMArenaAllocator;
 
-void VMArenaAllocator_init(Allocator* a, usize reserve_size);
+void VMArenaAllocator_init(Allocator* a, VMArenaState* s, usize reserve_size);
 void VMArenaAllocator_destroy(Allocator* a);
 
 #endif

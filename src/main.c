@@ -2,15 +2,36 @@
 #include <stdlib.h>
 
 #define BSTD_IMPL
+
+#define __USE_POSIX199309
+#include <time.h>
+
 #include "allocator.h"
 #include "heap/arena.h"
+#include "heap/vm_arena.h"
 #include "io/io.h"
 #include "lexer.h"
 #include "string/string_view.h"
 
+static inline u64 time_ns(void) {
+        struct timespec ts = {0};
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return (u64)ts.tv_sec * 1000000000ull + (u64)ts.tv_nsec;
+}
+
+#define BENCH(label, code)                                                     \
+        Statement({                                                            \
+                u64 _start = time_ns();                                        \
+                code;                                                          \
+                u64 _end = time_ns();                                          \
+                printf(                                                        \
+                    "%s: %8.3f ms\n", label, ((f64)_end - (f64)_start) / 1e6); \
+        })
+
 typedef struct {
         const char* input_file;
         bool        is_pretty;
+        bool        no_print;
         bool        help;
 } Args;
 
@@ -49,25 +70,9 @@ static bool parse_args_sv(int*        argc,
                                 continue;
                         }
 
-                        /* combined flags: -hp, -ph, etc. */
-                        if (SV_Front(a) == '-' && a.len >= 2 &&
-                            a.data[1] != '-') {
-                                StringView flags = SV_SubSV(a, 1, a.len);
-                                for (u64 j = 0; j < flags.len; j++) {
-                                        char c = flags.data[j];
-                                        if (c == 'h') {
-                                                out->help = true;
-                                        } else if (c == 'p') {
-                                                out->is_pretty = true;
-                                        } else {
-                                                fprintf(
-                                                    stderr,
-                                                    "%s: unknown option -%c\n",
-                                                    program,
-                                                    c);
-                                                return false;
-                                        }
-                                }
+                        if (SV_Equal(a, SV("-n")) ||
+                            SV_Equal(a, SV("--no-print"))) {
+                                out->no_print = true;
                                 continue;
                         }
 
@@ -194,12 +199,14 @@ void Lexerize(Allocator* arena, Args args) {
         Error      e       = IO_ReadFile(arena, args.input_file, &content);
         Fatal(e);
 
-        Lexer lexer = NewLexer(arena, args.input_file, content);
+        Lexer lexer = {0};
+        lexer       = NewLexer(arena, args.input_file, content);
         if (!Lex(&lexer)) {
                 unreachable;
                 exit(1);
         }
 
+        if (args.no_print) return;
         if (args.is_pretty) {
                 print_tokens_pretty(lexer.tokens);
                 return;
@@ -225,9 +232,11 @@ int main(int argc, char** argv) {
                 exit(0);
         }
 
-        Allocator arena = {0};
-        With(arena = NewVMArena(Gigabytes(1)), Allocator_Destroy(&arena)) {
-                Lexerize(&arena, args);
+        Allocator    arena = {0};
+        VMArenaState state = {0};
+        With(arena = NewVMArena(&state, Terabytes(1)),
+             Allocator_Destroy(&arena)) {
+                BENCH("Lexing", { Lexerize(&arena, args); });
         }
 
         return 0;

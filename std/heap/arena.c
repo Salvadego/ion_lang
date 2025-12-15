@@ -4,6 +4,7 @@
 
 #include "error/error.h"
 #include "platform/vm.h"
+#include "vm_arena.h"
 
 void static_arena_init(Arena* arena, u64 capacity) {
         StaticArenaState* state =
@@ -196,8 +197,6 @@ void ArenaAllocator_init(Allocator* allocator, usize capacity, ArenaType type) {
         allocator->state  = state;
 }
 
-#include "vm_arena.h"
-
 static ResultPtr vm_arena_alloc(const Allocator* alloc, usize size) {
         if (!alloc || !alloc->state) return ErrPtr(AllocErrorAllocFailed());
         VMArenaState* s = (VMArenaState*)alloc->state;
@@ -242,16 +241,15 @@ static Error vm_arena_destroy(Allocator* a) {
         }
         bstd_vm_release(s->region.start, s->region.size);
 
-        free(s);
         a->state  = NULL;
         a->vtable = NULL;
         return NewNoneError();
 }
 
-void VMArenaAllocator_init(Allocator* a, usize reserve_size) {
+void VMArenaAllocator_init(Allocator* a, VMArenaState* s, usize reserve_size) {
         if (!a) return;
 
-        VMArenaState* s = (VMArenaState*)malloc(sizeof(VMArenaState));
+        // VMArenaState* s = (VMArenaState*)malloc(sizeof(VMArenaState));
         if (!s) {
                 a->state  = NULL;
                 a->vtable = NULL;
@@ -266,7 +264,6 @@ void VMArenaAllocator_init(Allocator* a, usize reserve_size) {
 
         s->region = bstd_vm_reserve(reserve_size);
         if (!s->region.start || s->region.size == 0) {
-                free(s);
                 a->state  = NULL;
                 a->vtable = NULL;
                 return;

@@ -18,7 +18,7 @@ ALL_SRC          = $(SRC)
 OBJ              = $(patsubst ./src/%.c, $(BUILD_DIR)/%.o, $(SRC))
 
 DEBUGFLAGS       = -DDEBUG -ggdb -O0
-RELEASEFLAGS     = -O2
+RELEASEFLAGS     = -O3
 
 TEST_SUITES := $(notdir $(shell find tests -mindepth 1 -maxdepth 1 -type d))
 TEST_BINS   := $(addprefix $(TARGET_DIR)/test-,$(TEST_SUITES))

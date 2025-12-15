@@ -113,7 +113,7 @@ Lexer NewLexer(Allocator* alloc, const char* path, const StringView content) {
         };
 }
 
-void advance_location(Lexer* lexer, StringView sv) {
+static inline void advance_location(Lexer* lexer, StringView sv) {
         for (usize i = 0; i < sv.len; i++) {
                 lexer->location.col += 1;
                 if (sv.data[i] == '\n') {
@@ -123,39 +123,40 @@ void advance_location(Lexer* lexer, StringView sv) {
         }
 }
 
-StringView chop_prefix(Lexer* lexer, StringView prefix) {
+static inline StringView chop_prefix(Lexer* lexer, StringView prefix) {
         StringView sv = SV_ChopPrefix(&lexer->content, prefix);
         advance_location(lexer, sv);
         return sv;
 }
 
-StringView chop_while(Lexer* lexer, StringViewPredicate predicate) {
+static inline StringView chop_while(Lexer*              lexer,
+                                    StringViewPredicate predicate) {
         StringView sv = SV_ChopWhile(&lexer->content, predicate);
         advance_location(lexer, sv);
         return sv;
 }
 
-bool SV_IsSymbolic(const char c) {
+static inline bool SV_IsSymbolic(const char c) {
         return c == '_' || (bool)isalnum(c);
 }
 
-bool SV_IsSimpleQuote(const char c) {
+static inline bool SV_IsSimpleQuote(const char c) {
         return c == '\'';
 }
 
-bool SV_IsNotSimpleQuote(const char c) {
+static inline bool SV_IsNotSimpleQuote(const char c) {
         return c != '\'';
 }
 
-bool SV_IsDoubleQuote(const char c) {
+static inline bool SV_IsDoubleQuote(const char c) {
         return c == '"';
 }
 
-bool SV_IsNotDoubleQuote(const char c) {
+static inline bool SV_IsNotDoubleQuote(const char c) {
         return c != '"';
 }
 
-bool SV_IsNotNewLine(const char c) {
+static inline bool SV_IsNotNewLine(const char c) {
         return c != '\n';
 }
 
@@ -409,7 +410,8 @@ Token lexer_chop(Lexer* lexer) {
                 return NewToken(t, v, loc);
         }
 
-        printf("%c\n", SV_Front(lexer->content));
+        printf("[%c]\n", SV_Front(lexer->content));
+        printf("[%c]\n", lexer->content.data[++lexer->content.len]);
         unreachable;
         return NewToken(
             TOKENTYPE_EOF, (TokenValue){.symbol = lexer->content}, loc);
