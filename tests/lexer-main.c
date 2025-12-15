@@ -19,6 +19,9 @@ static void print_token(const Token t) {
                 case TOKENTYPE_STRING:
                         printf(":" SV_Fmt, SV_Args(t.val.symbol));
                         break;
+                case TOKENTYPE_CHAR:
+                        printf(":%c", (t.val.ch));
+                        break;
                 default:
                         break;
         }

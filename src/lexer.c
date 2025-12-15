@@ -278,14 +278,46 @@ bool match_CHAR(Lexer* lx, Token* out) {
         if (SV_Front(lx->content) != '\'') return false;
 
         Location loc = lx->location;
+        chop_prefix(lx, SV("'"));
 
-        chop_prefix(lx, SV("\'"));
-        StringView body = chop_while(lx, SV_IsNotSimpleQuote);
-        chop_prefix(lx, SV("\'"));
+        if (lx->content.len == 0) return false;
 
-        out->type       = TOKENTYPE_CHAR;
-        out->val.symbol = body;
-        out->location   = loc;
+        char value = 0;
+        char c     = SV_Front(lx->content);
+        chop_prefix(lx, NewStringView(&c, 1));
+
+        if (c == '\\') {
+                if (lx->content.len == 0) return false;
+
+                char esc = SV_Front(lx->content);
+                chop_prefix(lx, NewStringView(&esc, 1));
+                switch (esc) {
+                        case 'n':
+                                value = '\n';
+                                break;
+                        case 't':
+                                value = '\t';
+                                break;
+                        case '\\':
+                                value = '\\';
+                                break;
+                        case '\'':
+                                value = '\'';
+                                break;
+                        default:
+                                value = esc;
+                                break;
+                }
+        } else {
+                value = c;
+        }
+
+        if (SV_Front(lx->content) != '\'') return false;
+        chop_prefix(lx, SV("'"));
+
+        out->type     = TOKENTYPE_CHAR;
+        out->location = loc;
+        out->val.ch   = value;  // recommended: store as char, not StringView
         return true;
 }
 

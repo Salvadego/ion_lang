@@ -107,9 +107,11 @@ void print_token(Token token) {
         switch (token.type) {
                 case TOKENTYPE_IDENTIFIER:
                 case TOKENTYPE_STRING:
-                case TOKENTYPE_CHAR:
                 case TOKENTYPE_NUMBER:
                         printf(": " SV_Fmt, SV_Args(token.val.symbol));
+                        return;
+                case TOKENTYPE_CHAR:
+                        printf(": %c", token.val.ch);
                         return;
                 case TOKENTYPE_LPAREN:
                 case TOKENTYPE_RPAREN:
