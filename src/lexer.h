@@ -38,6 +38,7 @@ Location NewLocation(const char* path, const usize col, const usize row);
 
 typedef union {
         StringView symbol;
+        char       ch;
 } TokenValue;
 
 typedef struct {
