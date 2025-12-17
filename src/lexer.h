@@ -34,6 +34,9 @@ typedef struct {
         usize       row;
 } Location;
 
+#define LocFmt           "%s:%zu:%zu"
+#define LocArgs(__loc__) (__loc__).file_path, (__loc__).row, (__loc__).col
+
 Location NewLocation(const char* path, const usize col, const usize row);
 
 typedef union {
@@ -89,6 +92,7 @@ static const MultiLiteral MultiLiteralTable[] = {
 const usize MultiLiteralCount = ArrayCount(MultiLiteralTable);
 
 Token NewToken(TokenType type, TokenValue value, Location loc);
+Token TokensShift(Token* tokens);
 Lexer NewLexer(Allocator* allocator, const char* path, StringView content);
 Token lexer_chop(Lexer* lexer);
 bool  Lex(Lexer* lexer);

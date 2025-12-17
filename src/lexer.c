@@ -89,6 +89,20 @@ Token NewToken(const TokenType  type,
         };
 }
 
+Token TokensShift(Token* tokens) {
+        if (arr_len(tokens) <= 0) {
+                return NewToken(
+                    TOKENTYPE_EOF, (TokenValue){0}, NewLocation(NULL, 0, 0));
+        }
+
+        Token result = tokens[0];
+
+        arr_header(tokens)->size--;
+        tokens++;
+
+        return result;
+}
+
 Location NewLocation(const char* path, const usize col, const usize row) {
         return (Location){
             .file_path = path,
